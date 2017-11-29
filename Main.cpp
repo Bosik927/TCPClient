@@ -1,9 +1,19 @@
 #include <iostream>
 #include <string>
 #include <ctime>
+#include <cctype>
 #include <WS2tcpip.h>
+#include <regex>
 #pragma comment (lib,"ws2_32.lib")
 
+class BadPacketException : public std::exception
+{
+	void what()
+	{
+		std::cout << "Bad packet!" << std::endl;
+	}
+
+};
 
 class WSASession {
 private:
@@ -53,9 +63,9 @@ public:
 			throw std::system_error(WSAGetLastError(), std::system_category(), "Error connection socket");
 		}
 	}
-	
+
 	//WYSYLANIE PAKIETU
-	void Send( const std::string &message) 
+	void Send(const std::string &message)
 	{
 		/// NIE JESTEM PEWIEN CZY +1
 		const auto ret = send(sock, message.c_str(), message.size(), 0);
@@ -69,118 +79,161 @@ public:
 		int bytesReceived = recv(sock, buf, bufLeng, 0);
 	}
 };
-
-struct pakiet {
+struct packet {
 private:
-	unsigned short operacja;
-	unsigned short odpowiedz;
-	unsigned short id;
-	unsigned short ack;
+	std::string id;
+	std::string operation;
+	std::string answer;
+	std::string time;
 public:
-	pakiet(unsigned short opr, unsigned short res, short id, short ack) {
-		this->operacja[0] = opr;
-		this->odpowiedz = res;
-		this->id = id;
-		this->ack = ack;
-	}
-
-	pakiet(char rawData[], unsigned short size) {
-		if (size > 2) throw std::exception("To large buffor!!!");
-
-		unsigned short buff = rawData[0];
-		operacja = 0 | ((buff >> 4) & 0x0F);
-		odpowiedz = 0 | ((buff >> 1) & 0x07);
-		id = 0 | ((buff & 0x01) << 3);
-
-		buff = rawData[1];
-		id |= ((buff >> 5) & 0x07);
-		ack = 0 | ((buff >> 4) & 0x01);
-	}
-
-	std::string convertToSend() {
-		std::string rt;
-		char buff = 0;
-
-		buff |= (operacja << 4);
-		buff |= (odpowiedz << 1);
-		buff |= (id >> 3);
-		rt.push_back(buff);
-
-		buff = 0;
-		buff |= (id << 5);
-		//	buff |= (ack << 4);//usunac 
-		//	buff |= (0x0F);// usunac
-		rt.push_back(buff);
-
-		return rt;
-	}
-
-	bool comparePacets(pakiet pakietOtrzymany)
+	packet(const std::string &id_, const std::string &op_, const std::string &ans_, const std::string &tim_)
 	{
-		if (6 == pakietOtrzymany.getOperation() && odpowiedz == pakietOtrzymany.getResponse() && id == pakietOtrzymany.getId()) return true;
-		return false;
+		this->id = id_;
+		this->operation = op_;
+		this->answer = ans_;
+		this->time = tim_;
+	}
+	packet(const std::string& rawData) {
+
+		std::string message = rawData;
+		std::regex reg("[0-9a-zA-Z:\.]+(?=\\|)");
+		std::smatch match;
+
+		std::regex_search(message, match, reg);
+		id = match[0];
+		message = match.suffix();
+
+		std::regex_search(message, match, reg);
+		operation = match[0];
+		message = match.suffix();
+
+		std::regex_search(message, match, reg);
+		answer = match[0];
+		message = match.suffix();
+
+		std::regex_search(message, match, reg);
+		time = match[0];
+		message = match.suffix();
 	}
 
-	unsigned short getOperation() const {
-		return operacja;
-	}
 
-	unsigned short getResponse() const
+
+	std::string getID() { return id; }
+	std::string getOperation() { return operation; }
+	std::string getAnswer() { return answer; }
+	std::string getTime() { return time; }
+	std::string convertToString()
 	{
-		return odpowiedz;
-	}
-
-	unsigned short getAckFlag() const
-	{
-		return ack;
-	}
-
-	unsigned short getId() const
-	{
-		return id;
+		return ("Id#" + id + "|Op#" + operation + "|Odp#" + answer + "|Czas#" + time + "|");
 	}
 };
-// id#1 | op#GEN | time#12:00 : 00.000 |//odpowiedŸ
 
+//generowanie id,			->GEN odpowiedÅº w polu IDENTYFIKATOR
+//przesÅ‚anie liczby L		->NUM, w polu ODPOWIEDZI
+//przesÅ‚anie liczby prÃ³b	->ATT  w polu ODPOWIEDZI
+//przesylanie wyniku		->TRY  w polu ODPOWIEDZI
+//odpowiedz na wynik		->ANS  w polu ODPOWIEDZI
+//zakonczenie polaczenia	->EXI  
+
+// Example:
+// id#01|op#GEN|time#12:00:00.000|odp#123123|
 const std::string ipAddress = "25.50.98.211";
 const unsigned int port = 19975;
 
-//generowanie id,		 ->GEN odpowiedŸ w polu IDENTYFIKATOR
-//oczekiwanie			 ->WAI
-//start rozgrywki		 ->STA
-//przes³anie liczby L	 ->NUM, w polu ODPOWIEDZI
-//przes³anie liczby prób ->ATT	w polu ODPOWIEDZI
-//przesylanie wyniku	 ->TRY  w polu ODPOWIEDZI
-//odpowiedz na wynik	 ->ANS  w polu ODPOWIEDZI
-//zakonczenie polaczenia ->EXI  
+bool is_number(const std::string& s)
+{
+	return !s.empty() && std::find_if(s.begin(),
+		s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
+}
+void requestID(TCPSocket &Socket)
+{
+	packet messagePakiet("0", "GEN", "00", "12:00:00.000");
+	std::string messageString = messagePakiet.convertToString();
+	Socket.Send(messageString);
+
+}
+void sendL(TCPSocket &Socket, std::string &id)
+{
+	std::string numberL = "a"; unsigned int division;
+	do
+	{
+		std::cout << "Podaj dodatnia parzysta liczbe L: ";
+		std::getline(std::cin, numberL);
+		division = std::stoi(numberL);
+
+	} while (!is_number(numberL) && division % 2 == 0);
+	packet messagePakiet(id, "NUM", numberL, "12:00:00.000");
+	std::string messageString = messagePakiet.convertToString();
+	Socket.Send(messageString);
+
+}
+void trial(TCPSocket &Socket, std::string &id)
+{
+	std::string numberToSend = "a"; unsigned int division;
+	do {
+		std::cout << "Sprobuj zgadnac liczbe: ";
+		getline(std::cin, numberToSend);
+		division = std::stoi(numberToSend);
+
+	} while (!is_number(numberToSend) && division % 2 == 0);
+
+	packet messagePakiet(id, "ATT", numberToSend, "12:00:00.000");
+	std::string messageString = messagePakiet.convertToString();
+	Socket.Send(messageString);
+}
+void disconnection(TCPSocket &Socket, std::string &id)
+{
+	packet messagePakiet(id, "EXIT", "0", "12:00:00.000");
+	std::string messageString = messagePakiet.convertToString();
+	Socket.Send(messageString);
+
+}
 
 int main()
 {
-	//Inicjalizacja WinSock
 	WSASession Session;
-
-	//Creat socket
 	TCPSocket Socket;
 
-	//Connection 
-	Socket.connection(ipAddress,port);
+	Socket.connection(ipAddress, port);
 
-	//Sending message
-	std::string message = "Duupa!";
-	Socket.Send(message);
-
-	//Receiving message
-	char buf[64]; unsigned int bufLeng = 64;
+	requestID(Socket);
+	char buf[64]; const unsigned int bufLeng = 64;
 	Socket.Recv(buf, bufLeng);
+	std::string ID;
+	{
+		packet receivedPacket(buf);
+		ID = receivedPacket.getID();
+	}
 
-	//Sprawdzenie
-	std::cout << buf << std::endl;
-	std::cin.ignore(2);
-	
-//	std::time_t result = std::time(nullptr);
-//	std::cout << std::asctime(std::localtime(&result)) << result << " seconds since the Epoch\n";
+	sendL(Socket, ID);
 
+	Socket.Recv(buf, bufLeng);
+	packet receivedPacket(buf);
+	std::string numOfTriels = receivedPacket.getAnswer();
+	unsigned int numOfTrielsInt = std::stoi(numOfTriels);
 
+	while (numOfTrielsInt)
+	{
+		std::cout << "Twoja liczba prob to: " << numOfTrielsInt << std::endl;
+		trial(Socket, ID);
+
+		Socket.Recv(buf, bufLeng);
+		packet receivedPacket(buf);
+		if (receivedPacket.getAnswer() == "game over")
+		{
+			std::cout << "Przegrales!" << std::endl; break;
+		}
+		if (receivedPacket.getAnswer() == "win")
+		{
+			std::cout << "Wygrales!" << std::endl; break;
+		}
+		if (receivedPacket.getAnswer() == "bad number" &&numOfTrielsInt > 0)
+		{
+			std::cout << "Sprobuj jeszcze raz!" << std::endl; numOfTrielsInt--;
+		}
+	}
+
+	//disconnection(Socket, ID);
 
 	std::cin.ignore(2);
 

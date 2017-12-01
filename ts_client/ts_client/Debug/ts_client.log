@@ -1,2 +1,4 @@
-﻿  main.cpp
+﻿  Messages.cpp
+c:\users\bosik\desktop\ts_client\ts_client\messages.cpp(26): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bosik\desktop\ts_client\ts_client\messages.cpp(51): warning C4804: '<': unsafe use of type 'bool' in operation
   ts_client.vcxproj -> C:\Users\Bosik\Desktop\ts_client\Debug\ts_client.exe

@@ -13,11 +13,11 @@ packet::packet(const std::string& rawData) {
 	std::string message = rawData;
 	std::regex reg("[0-9a-zA-Z:\. _]+(?=\\/)");
 	std::smatch match;
-
+	
 	std::regex_search(message, match, reg);
 	id = match[0];
 	message = match.suffix();
-
+	
 	std::regex_search(message, match, reg);
 	operation = match[0];
 	message = match.suffix();

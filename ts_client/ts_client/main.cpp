@@ -4,24 +4,16 @@
 #include <cctype>
 #include <WS2tcpip.h>
 #include <regex>
+#include <chrono>
+#include <Windows.h>
+#include <iomanip>
 #include "WSASession.h"
 #include "TCPSocket.h"
 #include "Packet.h"
 #include "Messages.h"
-#include <chrono>
-#include <Windows.h>
-#include <iomanip>
 #include "CurrentTime.h"
 
 #pragma comment (lib,"ws2_32.lib")
-
-//generate id,			->GEN answer in id
-//send num L			->NUM answer in answer
-//send trials			->ATT answer in answer
-//send result			->TRY answer in answer
-//answer				->ANS answer in answer
-//Example:
-//id#01/op#GEN/time#12:00:00.000/odp#123123/
 
 int main() {
 

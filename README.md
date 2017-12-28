@@ -24,6 +24,6 @@ S=> A:id#4/op#NUM/time#12:00:00.100/odp#5/
 S=> R:id#4/op#ATT/time#12:00:00.000/odp#10/
 C=> A:id#4/op#ATT/time#12:00:00.100/odp#win/
 
-TRY - send result 
+-TRY - send result 
 S=> R:id#4/op#TRY/time#12:00:00.000/odp#10/
 C=> A:id#4/op#TRY/time#12:00:00.100/odp#win/

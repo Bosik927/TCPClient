@@ -37,12 +37,12 @@ int main() {
 
 	Socket.Recv(buf, bufLeng);
 	packet receivedPacket(buf);
-	std::string numOfTriels = receivedPacket.getAnswer();
-	unsigned int numOfTrielsInt = std::stoi(numOfTriels);
-	std::cout << "Twoja liczba prob to: " << numOfTrielsInt << std::endl;
+	std::string numOfTrials = receivedPacket.getAnswer();
+	unsigned int numOfTrialsInt = std::stoi(numOfTrials);
+	std::cout << "Twoja liczba prob to: " << numOfTrialsInt << std::endl;
 
-	while (numOfTrielsInt) {
-		std::cout << "Twoja aktualna liczba prob to: " << numOfTrielsInt << std::endl;
+	while (numOfTrialsInt) {
+		std::cout << "Twoja aktualna liczba prob to: " << numOfTrialsInt << std::endl;
 		trial(Socket, ID);
 
 		Socket.Recv(buf, bufLeng);
@@ -53,8 +53,8 @@ int main() {
 		if (receivedPacket2.getAnswer() == "win") {
 			std::cout << "Wygrales!" << std::endl; break;
 		}
-		if (receivedPacket2.getAnswer() == "bad" &&numOfTrielsInt > 0) {
-			std::cout << "Sprobuj jeszcze raz!" << std::endl; numOfTrielsInt--;
+		if (receivedPacket2.getAnswer() == "bad" &&numOfTrialsInt > 0) {
+			std::cout << "Sprobuj jeszcze raz!" << std::endl; numOfTrialsInt--;
 		}
 		std::cin.ignore(1);
 	}
